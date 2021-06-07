@@ -9,3 +9,21 @@ wta_2018_2021_matches <-
                      loser_seed = as.character(loser_seed))
           })
 
+wta = wta_2018_2021_matches
+
+# initial explore----
+colnames(wta)
+
+## matches between different hand player
+wta %>%
+  filter(winner_hand %in% c("L", "R"), loser_hand %in% c("L", "R")) %>%
+  group_by(winner_hand, loser_hand) %>%
+  summarise(n())
+
+## age difference between players
+wta %>%
+  mutate(age_difference = winner_age - loser_age) %>%
+#  select(age_difference) %>%
+  ggplot() + geom_boxplot(aes(x='', y=age_difference)) + coord_flip()
+
+
