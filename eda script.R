@@ -8,22 +8,76 @@ wta_2018_2021_matches <-
               mutate(winner_seed = as.character(winner_seed),
                      loser_seed = as.character(loser_seed))
           })
-
 wta = wta_2018_2021_matches
 
-# initial explore----
-colnames(wta)
 
-## matches between different hand player
+# matches between different hand player ----
 wta %>%
   filter(winner_hand %in% c("L", "R"), loser_hand %in% c("L", "R")) %>%
   group_by(winner_hand, loser_hand) %>%
   summarise(n())
 
-## age difference between players
+
+# age difference between players ----
 wta %>%
   mutate(age_difference = winner_age - loser_age) %>%
 #  select(age_difference) %>%
-  ggplot() + geom_boxplot(aes(x='', y=age_difference)) + coord_flip()
+  ggplot(aes(x='', y=age_difference)) +
+  geom_violin() + 
+  geom_boxplot(width=.2) +
+  coord_flip() +
+  theme_bw()
+
+
+# bo5 check ----
+wta %>%
+  group_by(best_of) %>%
+  count()
+
+
+# match length by rounds ----
+wta %>% 
+  group_by(round) %>%
+  summarise(avg_length = sum(minutes, na.rm = T)/n()) %>%
+  ggplot(aes(x=round, y=avg_length)) +
+  geom_point() +
+  theme_bw()
+
+
+# avg double fault and ace by division ----
+wta %>% 
+  mutate(total_ace = w_ace+l_ace,
+         total_df = w_df+l_df,) %>% 
+  group_by(tourney_level) %>%
+  summarise(avg_ace_by_division = sum(total_ace, na.rm=T)/n(),
+            avg_df_by_division = sum(total_df, na.rm=T)/n()) %>%
+  pivot_longer(cols = avg_ace_by_division:avg_df_by_division, 
+               names_to = "ace_df", values_to = "value") %>%
+  ggplot(aes(x=tourney_level, fill = ace_df)) +
+  geom_bar(aes(y=value), stat='identity', position='dodge') +
+  theme_bw()
+
+#'G' = Grand Slams, 'F' = Tour finals and other season-ending events
+#'P' = Premier, 'PM' = Premier Mandatory, 'I' = International.
+#'D' is used for Federation/Fed/Billie Jean King Cup, 
+#'and also for Wightman Cup and Bonne Bell Cup
+
+# surface type ----
+wta %>%
+  group_by(surface) %>%
+  summarise(avg_length = sum(minutes, na.rm = T)/n())
+
+
+games_win = wta %>% 
+  group_by(winner_name, surface) %>%
+  count() %>%
+  rename(player = winner_name)
+
+games_lose = wta %>%
+  group_by(loser_name, surface) %>%
+  count() %>%
+  rename(player = loser_name)
+
+all_game = left_join(games_lose, games_win, by='player')
 
 
