@@ -1,4 +1,5 @@
 library(tidyverse)
+library(gt)
 # read in data----
 wta_2018_2021_matches <-
   map_dfr(c(2018:2021),
@@ -30,12 +31,9 @@ wta %>%
 
 
 # bo5 check ----
-wta %>%
-  group_by(best_of) %>%
-  count()
+table(wta$best_of)
 
-
-# match length by rounds ----
+# 1st: match length by rounds ----
 wta %>% 
   group_by(round) %>%
   summarise(avg_length = sum(minutes, na.rm = T)/n()) %>%
@@ -43,8 +41,16 @@ wta %>%
   geom_point() +
   theme_bw()
 
+wta %>%
+  filter(minutes<500) %>% 
+  ggplot(aes(x=minutes)) + 
+  geom_density() +
+  facet_wrap(~ round, scales = "free_y") +
+  geom_rug(alpha=0.3) + 
+  theme_bw()
 
-# avg double fault and ace by division ----
+
+# avg double fault and ace by level ----
 wta %>% 
   mutate(total_ace = w_ace+l_ace,
          total_df = w_df+l_df,) %>% 
@@ -62,12 +68,7 @@ wta %>%
 #'D' is used for Federation/Fed/Billie Jean King Cup, 
 #'and also for Wightman Cup and Bonne Bell Cup
 
-# surface type ----
-wta %>%
-  group_by(surface) %>%
-  summarise(avg_length = sum(minutes, na.rm = T)/n())
-
-
+# player win rates on surface type ----
 games_win = wta %>% 
   group_by(winner_name, surface) %>%
   count() %>%
@@ -78,6 +79,24 @@ games_lose = wta %>%
   count() %>%
   rename(player = loser_name)
 
-all_game = left_join(games_lose, games_win, by='player')
+full_join(games_lose, games_win, by=c('player', 'surface')) %>%
+  rename(wins = "n.y", losses = "n.x") %>% 
+  replace_na(list(losses = 0, wins=0)) %>%
+  mutate(total = wins+losses, winrate = wins/total) %>%
+  arrange(surface, desc(winrate)) %>%
+  filter(total >= 10)
 
 
+# 2nd: aces on surface type
+wta %>% 
+  mutate(total_ace = w_ace+l_ace) %>% 
+  filter(total_ace <50) %>%
+  ggplot(aes(y=total_ace, fill=surface)) +
+  geom_boxplot(aes(x='')) +
+  coord_flip() + 
+  theme_bw()
+
+
+# first serve winrate
+wta %>%
+  mutate(w_1strate = w_1stWon/w_1stIn, l_1strate = l_1stWon/l_1stIn)
