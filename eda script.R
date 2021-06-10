@@ -32,6 +32,36 @@ wta_2018_2021_matches %>%
   count(winner_id) %>%
   arrange(desc(n()))
 
-   
+
+# The higher the tournament level the more aces made--------------------------------------------------------
+
+wta_2018_2021_matches %>%
+  mutate(total_aces <- w_ace + l_ace) %>%
+  group_by(tourney_level) 
+
+wta_2018_2021_matches %>% 
+  mutate(total_ace = w_ace+l_ace) %>% 
+  group_by(tourney_level) %>%
+  summarise(avg_ace_by_division = sum(total_ace, na.rm=T)/n()) %>%
+  pivot_longer(cols = avg_ace_by_division, 
+               names_to = "ace", values_to = "value") %>%
+  ggplot(aes(x=tourney_level, fill = ace)) +
+  geom_bar(aes(y=value), stat='identity', position='dodge') +
+  theme_bw()
+
+
+# surface and aces --------------------------------------------------------
+
+wta_2018_2021_matches %>%
+  mutate(total_ace = w_ace+l_ace) %>%
+  group_by(surface) %>%
+  summarise(all_aces <- sum(total_ace, na.rm = T))
+
+
+
+
+
+
+
 
 
