@@ -33,7 +33,7 @@ wta_2018_2021_matches %>%
   arrange(desc(n()))
 
 
-# The higher the tournament level the more aces made--------------------------------------------------------
+# Hypothesis 1: The higher the tournament level the more aces made--------------------------------------------------------
 
 wta_2018_2021_matches %>%
   mutate(total_aces <- w_ace + l_ace) %>%
@@ -50,15 +50,27 @@ wta_2018_2021_matches %>%
   theme_bw()
 
 
-# surface and aces --------------------------------------------------------
+# Hypothesis 2: surface and aces --------------------------------------------------------
 
 wta_2018_2021_matches %>%
   mutate(total_ace = w_ace+l_ace) %>%
   group_by(surface) %>%
   summarise(all_aces <- sum(total_ace, na.rm = T))
 
+wta_2018_2021_matches %>%
+  mutate(total_ace = w_ace + l_ace) %>%
+  filter(total_ace < 50) %>%
+  ggplot(aes(y = total_ace, fill = surface)) +
+  geom_boxplot(aes(x= '')) +
+  coord_flip() +
+  theme_bw()
 
 
+# Hypothesis 3: 1st serve win rate ------------------------------------------------------
+
+wta_2018_2021_matches %>%
+  mutate(w_1stRate = w_1stWon / w_1stIn, l_1stRate = l_1stWon / l_1stIn) %>%
+  summarise(w_1stRate, l_1stRate)
 
 
 
