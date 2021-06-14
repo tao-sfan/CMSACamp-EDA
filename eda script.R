@@ -1,5 +1,8 @@
 library(tidyverse)
 library(gt)
+library(ggdendro)
+library(seriation)
+library(flexclust)
 # read in data----
 wta_2018_2021_matches <-
   map_dfr(c(2018:2021),
@@ -42,13 +45,12 @@ wta %>%
   theme_bw()
 
 wta %>%
-  filter(minutes<500) %>% 
+  filter(minutes<500) %>%
   ggplot(aes(x=minutes)) + 
   geom_density() +
-  facet_wrap(~ round, scales = "free_y") +
+  facet_wrap(~ round) +
   geom_rug(alpha=0.3) + 
   theme_bw()
-
 
 # avg double fault and ace by level ----
 wta %>% 
@@ -68,7 +70,7 @@ wta %>%
 #'D' is used for Federation/Fed/Billie Jean King Cup, 
 #'and also for Wightman Cup and Bonne Bell Cup
 
-# player win rates on surface type ----
+# 3rd: player win rates on surface type ----
 games_win = wta %>% 
   group_by(winner_name, surface) %>%
   count() %>%
@@ -97,10 +99,6 @@ wta %>%
   theme_bw()
 
 
-# first serve winrate
-wta %>%
-  mutate(w_1strate = w_1stWon/w_1stIn, l_1strate = l_1stWon/l_1stIn)
-
 # cluster avg aces df----
 winner_ace_df = wta %>%
   group_by(winner_name) %>%
@@ -122,14 +120,57 @@ all_ace_df = full_join(winner_ace_df, loser_ace_df, by='name') %>%
   mutate(avg_ace = (total_ace_win+total_ace_lose)/(n_game_win+n_game_lose),
          avg_df = (total_df_win+total_df_lose)/(n_game_win+n_game_lose))
 
+#heat map
 player_dist = dist(select(all_ace_df, avg_ace, avg_df))
 
+player_dist_matrix = as.matrix(player_dist)
+rownames(player_dist_matrix) = all_ace_df$name
+colnames(player_dist_matrix) = all_ace_df$name
+
+long_dis_matrix = as_tibble(player_dist_matrix) %>%
+  mutate(player1 = rownames(player_dist_matrix)) %>%
+  pivot_longer(cols = -player1, names_to = "player2", 
+               values_to = "distance")
+
+player_dist_seriate = seriate(player_dist)
+player_order = get_order(player_dist_seriate)
+player_name_order = all_ace_df$name[player_order]
+
+long_dis_matrix %>%
+  mutate(player1 = fct_relevel(player1, player_name_order),
+         player2 = fct_relevel(player2, player_name_order)) %>%
+  ggplot(aes(x=player1, y=player2, fill=distance)) + 
+  geom_tile() + 
+  theme_bw() +
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        legend.position = "bottom") +
+  scale_fill_gradient(low = "darkorange", high = "darkblue")
+
+# hierarchical cluster
 ace_df_hclust = hclust(player_dist, method = "complete")  
 
 all_ace_df %>% 
   mutate(player_clusters = as.factor(cutree(ace_df_hclust, k=3))) %>%
   ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
   geom_point() + 
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "bottom")
 
+ggdendrogram(ace_df_hclust, theme_dendro = F, labels = F, leaf_labels = F) +
+  theme_bw() + 
+  labs(y = "Dissimilarity between clusters") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
 
+# kmeans++ cluster
+wta_kmeanspp = kcca(select(all_ace_df, avg_ace, avg_df), k=3, 
+                control = list(initcent = "kmeanspp"))
+all_ace_df %>%
+  mutate(player_clusters = as.factor(wta_kmeanspp@cluster)) %>%
+  ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
+  geom_point() +
+  theme_bw() +
+  theme(legend.position = "bottom")
