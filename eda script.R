@@ -100,3 +100,36 @@ wta %>%
 # first serve winrate
 wta %>%
   mutate(w_1strate = w_1stWon/w_1stIn, l_1strate = l_1stWon/l_1stIn)
+
+# cluster avg aces df----
+winner_ace_df = wta %>%
+  group_by(winner_name) %>%
+  summarise(total_ace_win = sum(w_ace, na.rm = T),
+          total_df_win = sum(w_df, na.rm = T),
+          n_game_win = n()) %>%
+  rename(name=winner_name)
+
+loser_ace_df = wta %>%
+  group_by(loser_name) %>%
+  summarise(total_ace_lose = sum(l_ace, na.rm = T),
+            total_df_lose = sum(l_ace, na.rm = T),
+            n_game_lose = n()) %>%
+  rename(name=loser_name)
+
+all_ace_df = full_join(winner_ace_df, loser_ace_df, by='name') %>%
+  replace_na(list(total_ace_win = 0, total_df_win = 0, n_game_win = 0,
+                  total_ace_lose = 0, total_df_lose = 0, n_game_lose = 0)) %>%
+  mutate(avg_ace = (total_ace_win+total_ace_lose)/(n_game_win+n_game_lose),
+         avg_df = (total_df_win+total_df_lose)/(n_game_win+n_game_lose))
+
+player_dist = dist(select(all_ace_df, avg_ace, avg_df))
+
+ace_df_hclust = hclust(player_dist, method = "complete")  
+
+all_ace_df %>% 
+  mutate(player_clusters = as.factor(cutree(ace_df_hclust, k=3))) %>%
+  ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
+  geom_point() + 
+  theme_bw()
+
+
