@@ -1,0 +1,105 @@
+---
+title: "Give it a title"
+author: 
+  - "Sara Armstrong"
+  - "Grace Fain"
+  - "Sifan Tao"
+date: '`r Sys.Date()`'
+output:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    nature:
+      slideNumberFormat: "%current%"
+      highlightStyle: github
+      highlightLines: true
+      ratio: 16:9
+      countIncrementalSlides: true
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(
+  fig.width=9, fig.height=3.5, fig.retina=3,
+  out.width = "100%",
+  cache = FALSE,
+  echo = TRUE,
+  message = FALSE, 
+  warning = FALSE,
+  fig.show = TRUE,
+  hiline = TRUE
+)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_duo_accent(
+  primary_color = "#1381B0",
+  secondary_color = "#FF961C",
+  inverse_header_color = "#FFFFFF"
+)
+```
+
+## First slide
+
+
+```{r load-wta, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidyverse)
+wta_2018_2021_matches <-
+  map_dfr(c(2018:2021),
+          function(year) {
+            read_csv(paste0("https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_",
+                            year, ".csv")) %>%
+              mutate(winner_seed = as.character(winner_seed),
+                     loser_seed = as.character(loser_seed))
+          })
+```
+---
+
+## Surface type and Aces 
+```{r surfacetype_ace, echo=FALSE}
+wta_2018_2021_matches %>%
+  mutate(total_ace = w_ace + l_ace) %>%
+  filter(total_ace < 50) %>%
+  ggplot(aes(y = total_ace, fill = surface)) +
+  geom_boxplot(aes(x= '')) +
+  coord_flip() +
+  theme_bw()
+```
+---
+## Match Length by Round
+```{r match_length, echo = FALSE}
+wta_2018_2021_matches %>%
+  filter(minutes < 500) %>%
+  ggplot(aes(x = minutes)) +
+  geom_density() +
+  facet_wrap(~ round) +
+  geom_rug(alpha = .3) +
+  theme_bw()
+```
+
+---
+## 1st Serve Win Rate
+```{r win_rate, echo = FALSE}
+games_win = wta_2018_2021_matches%>% 
+  group_by(winner_name, surface) %>%
+  count() %>%
+  rename(player = winner_name)
+
+games_lose = wta_2018_2021_matches %>%
+  group_by(loser_name, surface) %>%
+  count() %>%
+  rename(player = loser_name)
+
+full_join(games_lose, games_win, by=c('player', 'surface')) %>%
+  rename(wins = "n.y", losses = "n.x") %>% 
+  replace_na(list(losses = 0, wins=0)) %>%
+  mutate(total = wins+losses, winrate = wins/total) %>%
+  arrange(surface, desc(winrate)) %>%
+  filter(total >= 10) %>% 
+  ungroup() %>%
+  group_by(surface) %>%
+  slice(1:10) %>%
+  ggplot(aes(x=player, y=winrate)) +
+  geom_bar(stat='identity') + 
+  facet_wrap(~surface, ncol=1) +
+  theme_bw()
