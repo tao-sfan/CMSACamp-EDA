@@ -1,10 +1,12 @@
 library(tidyverse)
+
 library(gt)
 library(ggdendro)
 library(seriation)
 library(flexclust)
 library(protoclust)
 # read in data----
+=======
 wta_2018_2021_matches <-
   map_dfr(c(2018:2021),
           function(year) {
@@ -13,37 +15,34 @@ wta_2018_2021_matches <-
               mutate(winner_seed = as.character(winner_seed),
                      loser_seed = as.character(loser_seed))
           })
-wta = wta_2018_2021_matches
 
+head(wta_2018_2021_matches)
 
-# matches between different hand player ----
-wta %>%
-  filter(winner_hand %in% c("L", "R"), loser_hand %in% c("L", "R")) %>%
+# minutes for each round ----
+table(wta_2018_2021_matches$round)
+
+wta_2018_2021_matches %>%
+  ggplot(aes(x = round)) +
+  geom_point(aes(y = minutes))
+
+# right and left hand ----
+wta_2018_2021_matches %>%
+  filter(winner_hand %in% c("R", "L"), loser_hand %in% c("R", "L")) %>%
   group_by(winner_hand, loser_hand) %>%
   summarise(n())
 
+# prop of bp saved for winners v losers ----
+wta_2018_2021_matches %>%
+  count(w_bpSaved/w_bpFaced, l_bpSaved/l_bpFaced)
 
-# age difference between players ----
-wta %>%
-  mutate(age_difference = winner_age - loser_age) %>%
-#  select(age_difference) %>%
-  ggplot(aes(x='', y=age_difference)) +
-  geom_violin() + 
-  geom_boxplot(width=.2) +
-  coord_flip() +
-  theme_bw()
+# number of wins each player has
+wta_2018_2021_matches %>%
+  count(winner_id) %>%
+  arrange(desc(n()))
 
 
-# bo5 check ----
-table(wta$best_of)
+# Tournament level and aces made--------------------------------------------------------
 
-# 1st: match length by rounds ----
-wta %>% 
-  group_by(round) %>%
-  summarise(avg_length = sum(minutes, na.rm = T)/n()) %>%
-  ggplot(aes(x=round, y=avg_length)) +
-  geom_point() +
-  theme_bw()
 
 wta %>%
   filter(minutes<300) %>%
@@ -60,30 +59,30 @@ wta %>%
 wta %>% 
   mutate(total_ace = w_ace+l_ace,
          total_df = w_df+l_df,) %>% 
+=======
+wta_2018_2021_matches %>%
+  mutate(total_aces <- w_ace + l_ace) %>%
+  group_by(tourney_level) 
+
+wta_2018_2021_matches %>% 
+  mutate(total_ace = w_ace+l_ace) %>% 
+
   group_by(tourney_level) %>%
-  summarise(avg_ace_by_division = sum(total_ace, na.rm=T)/n(),
-            avg_df_by_division = sum(total_df, na.rm=T)/n()) %>%
-  pivot_longer(cols = avg_ace_by_division:avg_df_by_division, 
-               names_to = "ace_df", values_to = "value") %>%
-  ggplot(aes(x=tourney_level, fill = ace_df)) +
+  summarise(avg_ace_by_division = sum(total_ace, na.rm=T)/n()) %>%
+  pivot_longer(cols = avg_ace_by_division, 
+               names_to = "ace", values_to = "value") %>%
+  ggplot(aes(x=tourney_level, fill = ace)) +
   geom_bar(aes(y=value), stat='identity', position='dodge') +
   theme_bw()
 
-#'G' = Grand Slams, 'F' = Tour finals and other season-ending events
-#'P' = Premier, 'PM' = Premier Mandatory, 'I' = International.
-#'D' is used for Federation/Fed/Billie Jean King Cup, 
-#'and also for Wightman Cup and Bonne Bell Cup
 
-# 3rd: player win rates on surface type ----
-games_win = wta %>% 
-  group_by(winner_name, surface) %>%
-  count() %>%
-  rename(player = winner_name)
+# Hypothesis 1: surface and aces --------------------------------------------------------
 
-games_lose = wta %>%
-  group_by(loser_name, surface) %>%
-  count() %>%
-  rename(player = loser_name)
+wta_2018_2021_matches %>%
+  mutate(total_ace = w_ace+l_ace) %>%
+  group_by(surface) %>%
+  summarise(all_aces <- sum(total_ace, na.rm = T))
+
 
 full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   rename(wins = "n.y", losses = "n.x") %>% 
@@ -98,26 +97,50 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   geom_bar(stat='identity') + 
   facet_wrap(~surface, ncol=1) +
   theme_bw()
-
-# 2nd: aces on surface type
-wta %>% 
-  mutate(total_ace = w_ace+l_ace) %>% 
-  filter(total_ace <50) %>%
-  ggplot(aes(y=total_ace, fill=surface)) +
-  geom_boxplot(aes(x='')) +
-  coord_flip() + 
+=======
+wta_2018_2021_matches %>%
+  mutate(total_ace = w_ace + l_ace) %>%
+  filter(total_ace < 50) %>%
+  ggplot(aes(y = total_ace, fill = surface)) +
+  geom_boxplot(aes(x= '')) +
+  coord_flip() +
   theme_bw()
 
 
-# cluster avg aces df----
-winner_ace_df = wta %>%
+# Hypothesis 2: 1st serve win rate ------------------------------------------------------
+
+wta_2018_2021_matches %>%
+  mutate(w_1stRate = w_1stWon / w_1stIn, l_1stRate = l_1stWon / l_1stIn) %>%
+  summarise(w_1stRate, l_1stRate) 
+
+# Hypothesis 3: Match length by round ----
+
+wta_2018_2021_matches %>%
+  group_by(round) %>%
+  summarise(avg_length = sum(minutes, na.rm=TRUE)/n())
+
+
+wta_2018_2021_matches %>%
+  filter(minutes < 500) %>%
+  ggplot(aes(x = minutes)) +
+  geom_density() +
+  facet_wrap(~ round) +
+  geom_rug(alpha = .3) +
+  theme_bw()
+  
+
+#Clustering ------
+
+w_df_ace <-
+  wta_2018_2021_matches %>%
   group_by(winner_name) %>%
-  summarise(total_ace_win = sum(w_ace, na.rm = T),
-          total_df_win = sum(w_df, na.rm = T),
-          n_game_win = n()) %>%
+  summarise(total_ace_w = sum(w_ace, na.rm = TRUE),
+            total_df_w = sum(w_df, na.rm = TRUE),
+            n_game_w = n()) %>%
   rename(name=winner_name)
 
-loser_ace_df = wta %>%
+l_df_ace <-
+  wta_2018_2021_matches %>%
   group_by(loser_name) %>%
   summarise(total_ace_lose = sum(l_ace, na.rm = T),
             total_df_lose = sum(l_ace, na.rm = T),
@@ -165,17 +188,45 @@ all_ace_df %>%
   mutate(player_clusters = as.factor(cutree(ace_df_hclust, k=3))) %>%
   ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
   geom_point() + 
+  summarise(total_ace_l = sum(l_ace, na.rm = TRUE),
+            total_df_l = sum(l_df, na.rm = TRUE),
+            n_game_l = n()) %>%
+  rename(name = loser_name)
+
+all_df_ace <-
+  full_join(w_df_ace, l_df_ace, by = 'name') %>%
+  replace_na(list(total_ace_w = 0, total_df_w = 0,
+                  n_game_w = 0, total_ace_l = 0,
+                  total_df_l = 0, n_game_l = 0)) %>%
+  mutate(avg_ace = (total_ace_w + total_ace_l)/(n_game_w + n_game_l),
+         avg_df = (total_df_w +total_df_l)/(n_game_w + n_game_l))
+
+
+player_dist <- 
+  dist(dplyr::select(all_df_ace, avg_ace, avg_df))
+
+wta_hclust<-
+  hclust(player_dist, method = "complete")
+
+all_df_ace %>%
+  mutate(player_clusters =
+           as.factor(cutree(wta_hclust, k = 3))) %>%
+  ggplot(aes(x = avg_ace, y = avg_df,
+             color = player_clusters)) +
+  geom_point() +
   theme_bw() +
   theme(legend.position = "bottom")
 
-ggdendrogram(ace_df_hclust, theme_dendro = F, labels = F, leaf_labels = F) +
-  theme_bw() + 
+ggdendrogram(wta_hclust, theme_dendro = FALSE,
+             labels = FALSE, leaf_labels = FALSE) +
   labs(y = "Dissimilarity between clusters") +
-  theme(axis.text.x = element_blank(), 
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank(),
         panel.grid = element_blank())# +
   #geom_hline(yintercept = 6, linetype = "dashed", color = "darkred")
+
 
 # kmeans++ cluster
 wta_kmeanspp = kcca(select(all_ace_df, avg_ace, avg_df), k=3, 
@@ -205,3 +256,6 @@ all_ace_df %>%
   geom_point() + 
   theme_bw() +
   theme(legend.position = "bottom")
+=======
+library(ggdendro)
+
