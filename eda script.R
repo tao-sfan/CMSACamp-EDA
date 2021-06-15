@@ -3,6 +3,7 @@ library(gt)
 library(ggdendro)
 library(seriation)
 library(flexclust)
+library(protoclust)
 # read in data----
 wta_2018_2021_matches <-
   map_dfr(c(2018:2021),
@@ -45,14 +46,17 @@ wta %>%
   theme_bw()
 
 wta %>%
-  filter(minutes<500) %>%
+  filter(minutes<300) %>%
+  mutate(fct_relevel(round, 
+                     "F", "SF", "QF", "R16", "R32", "R64", "R128", "RR")) %>%
   ggplot(aes(x=minutes)) + 
   geom_density() +
   facet_wrap(~ round) +
   geom_rug(alpha=0.3) + 
   theme_bw()
 
-# avg double fault and ace by level ----
+
+  # avg double fault and ace by level ----
 wta %>% 
   mutate(total_ace = w_ace+l_ace,
          total_df = w_df+l_df,) %>% 
@@ -86,8 +90,14 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   replace_na(list(losses = 0, wins=0)) %>%
   mutate(total = wins+losses, winrate = wins/total) %>%
   arrange(surface, desc(winrate)) %>%
-  filter(total >= 10)
-
+  filter(total >= 10) %>% 
+  ungroup() %>%
+  group_by(surface) %>%
+  slice(1:10) %>%
+  ggplot(aes(x=player, y=winrate)) +
+  geom_bar(stat='identity') + 
+  facet_wrap(~surface, ncol=1) +
+  theme_bw()
 
 # 2nd: aces on surface type
 wta %>% 
@@ -118,11 +128,12 @@ all_ace_df = full_join(winner_ace_df, loser_ace_df, by='name') %>%
   replace_na(list(total_ace_win = 0, total_df_win = 0, n_game_win = 0,
                   total_ace_lose = 0, total_df_lose = 0, n_game_lose = 0)) %>%
   mutate(avg_ace = (total_ace_win+total_ace_lose)/(n_game_win+n_game_lose),
-         avg_df = (total_df_win+total_df_lose)/(n_game_win+n_game_lose))
+         avg_df = (total_df_win+total_df_lose)/(n_game_win+n_game_lose)) %>%
+  filter(n_game_win+n_game_lose>10)
 
-#heat map
 player_dist = dist(select(all_ace_df, avg_ace, avg_df))
 
+#heat map
 player_dist_matrix = as.matrix(player_dist)
 rownames(player_dist_matrix) = all_ace_df$name
 colnames(player_dist_matrix) = all_ace_df$name
@@ -163,7 +174,8 @@ ggdendrogram(ace_df_hclust, theme_dendro = F, labels = F, leaf_labels = F) +
   theme(axis.text.x = element_blank(), 
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank(),
-        panel.grid = element_blank())
+        panel.grid = element_blank())# +
+  #geom_hline(yintercept = 6, linetype = "dashed", color = "darkred")
 
 # kmeans++ cluster
 wta_kmeanspp = kcca(select(all_ace_df, avg_ace, avg_df), k=3, 
@@ -172,5 +184,24 @@ all_ace_df %>%
   mutate(player_clusters = as.factor(wta_kmeanspp@cluster)) %>%
   ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
   geom_point() +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+# minimax linkage
+wta_minimax = protoclust(player_dist)
+
+ggdendrogram(wta_minimax, theme_dendro = F, labels = F, leaf_labels = F) +
+  theme_bw() + 
+  labs(y = "Dissimilarity between clusters") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())# +
+#geom_hline(yintercept = 6, linetype = "dashed", color = "darkred")
+
+all_ace_df %>% 
+  mutate(player_clusters = as.factor(protocut(wta_minimax, k=3)$cl)) %>%
+  ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
+  geom_point() + 
   theme_bw() +
   theme(legend.position = "bottom")
