@@ -68,9 +68,34 @@ wta_2018_2021_matches %>%
 
 # Hypothesis 2: 1st serve win rate ------------------------------------------------------
 
-wta_2018_2021_matches %>%
-  mutate(w_1stRate = w_1stWon / w_1stIn, l_1stRate = l_1stWon / l_1stIn) %>%
-  summarise(w_1stRate, l_1stRate) 
+#wta_2018_2021_matches %>%
+  #mutate(w_1stRate = w_1stWon / w_1stIn, l_1stRate = l_1stWon / l_1stIn) %>%
+  #summarise(w_1stRate, l_1stRate) 
+
+games_win = wta_2018_2021_matches%>% 
+  group_by(winner_name, surface) %>%
+  count() %>%
+  rename(player = winner_name)
+
+games_lose = wta_2018_2021_matches %>%
+  group_by(loser_name, surface) %>%
+  count() %>%
+  rename(player = loser_name)
+
+full_join(games_lose, games_win, by=c('player', 'surface')) %>%
+  rename(wins = "n.y", losses = "n.x") %>% 
+  replace_na(list(losses = 0, wins=0)) %>%
+  mutate(total = wins+losses, winrate = wins/total) %>%
+  arrange(surface, desc(winrate)) %>%
+  filter(total >= 10) %>% 
+  ungroup() %>%
+  group_by(surface) %>%
+  slice(1:10) %>%
+  ggplot(aes(x=player, y=winrate)) +
+  geom_bar(stat='identity') + 
+  facet_wrap(~surface, ncol=1) +
+  theme_bw()
+
 
 # Hypothesis 3: Match length by round ----
 
