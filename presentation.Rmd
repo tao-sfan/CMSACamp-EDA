@@ -39,7 +39,7 @@ style_duo_accent(
 )
 ```
 
-##Number of Aces on Different Surface
+##Aces are more common on grass surface
 ```{r, echo=F, cache=T}
 library(tidyverse)
 library(gt)
@@ -71,7 +71,7 @@ wta %>%
 
 ---
 
-##Match Length in Different Round
+##Match length is longer in later rounds
 ```{r, echo=F}
 wta$round=as.factor(wta$round)
 wta$round = fct_relevel(wta$round, 
@@ -91,7 +91,7 @@ wta %>%
 
 ---
 
-##Best Player on Different Surface
+##Players perform better on certain surfaces
 ```{r, echo=F}
 games_win = wta %>% 
   group_by(winner_name, surface) %>%
@@ -128,7 +128,7 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
 ```
 
 ---
-##Cluster on the number of aces and double faults of each player
+##Players have different strategies on serving
 ```{r, echo=F}
 winner_ace_df = wta %>%
   group_by(winner_name) %>%
