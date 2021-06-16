@@ -41,27 +41,27 @@ style_duo_accent(
 
 
 ## Motivation
--given data set 
+- given data set 
 - looking for relationships within the data
--practicing eda
+- practicing eda
 ---
 ## Dataset
 
 - WTA Match Data: all WTA matches between 2018 and 2021
  - courtesy of Jeff Sackmann’s famous tennis repository
 
--each observation was a player and from there was broken down into observations of winners and losers, for example the number of aces by each player was broken down into winner_ace and loser_ace
+- each observation was a player and from there was broken down into observations of winners and losers, for example the number of aces by each player was broken down into winner_ace and loser_ace
 
--most common used variables
+- most common used variables
  - w_ace, l_ace, surface
  
 ---
 ## Hypothesis
- 1) The surface type with the most aces is the hard courts.
+#### 1) The surface type with the most aces is the hard courts.
  
- 2) The final matches would be the longest matches
+#### 2) The final matches would be the longest matches
  
- 3) Players will have a high win rate on only one of the surfaces
+#### 3) Players will have a high win rate on only one of the surfaces
  
 ---
 
@@ -148,34 +148,6 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
   scale_x_reordered()
 ```
-
----
-## Recap and what is next for the WTA match data
-
-
-Aces are most common on grass courts.
-
-
-
-Later round matches are typically longer than earlier rounds.
-
-
-
-Players preform better on some surfaces than others
-
---
-
-Through clustering, we can visualize groups of players that are more conservative with their serves versus players that are more aggressive.
-
-
--_Limitations:_
- - Due to the dataset separating winner and loser data, it made it difficult to explore and compare overall player performances
-
--_Next Steps:_ 
- - examining other player data such as second serve points and break points
- - manipulating the data to be able to compare players more easily
-
-
 ---
 ##Players have different strategies on serving
 ```{r, echo=F, fig.asp=1, fig.width=3.5,out.width="50%",  fig.align='center'}
@@ -216,5 +188,34 @@ all_ace_df %>%
   labs(color="Player Clusters")
 
 ```
+
+---
+## Recap and what is next for the WTA match data
+
+
+####Aces are most common on grass courts.
+
+
+
+####Later round matches are typically longer than earlier rounds.
+
+
+
+####Players preform better on some surfaces than others
+
+--
+
+Through clustering, we can visualize groups of players that are more conservative with their serves versus players that are more aggressive.
+
+
+- _Limitations:_
+ - Due to the dataset separating winner and loser data, it made it difficult to explore and compare overall player performances
+
+- _Next Steps:_ 
+ - examining other player data such as second serve points and break points
+ - manipulating the data to be able to compare players more easily
+
+
+
 
 
