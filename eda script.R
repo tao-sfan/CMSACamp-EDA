@@ -94,7 +94,8 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   ggplot(aes(x=player, y=winrate)) +
   geom_bar(stat='identity') + 
   facet_wrap(~surface, ncol=1) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5))
 
 
 # Hypothesis 3: Match length by round ----
@@ -137,8 +138,8 @@ all_df_ace <-
                   n_game_w = 0, total_ace_l = 0,
                   total_df_l = 0, n_game_l = 0)) %>%
   mutate(avg_ace = (total_ace_w + total_ace_l)/(n_game_w + n_game_l),
-         avg_df = (total_df_w +total_df_l)/(n_game_w + n_game_l))
-
+         avg_df = (total_df_w +total_df_l)/(n_game_w + n_game_l)) %>%
+  filter(n_game_win+n_game_lose>10)
 
 player_dist <- 
   dist(dplyr::select(all_df_ace, avg_ace, avg_df))
