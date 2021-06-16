@@ -1,5 +1,5 @@
 ---
-title: "Give it a title"
+title: "Exploratory Data Analysis: WTA"
 author: 
   - "Sara Armstrong"
   - "Grace Fain"
@@ -39,6 +39,7 @@ style_duo_accent(
 )
 ```
 
+
 ## Motivation
 -given data set 
 - looking for relationships within the data
@@ -64,8 +65,15 @@ style_duo_accent(
  
 ---
 
-```{r load-wta, echo = FALSE, warning = FALSE, message = FALSE}
+## Aces are most common on grass surface courts
+```{r, echo=F, cache=T}
 library(tidyverse)
+library(gt)
+library(ggdendro)
+library(seriation)
+library(flexclust)
+library(protoclust)
+
 wta_2018_2021_matches <-
   map_dfr(c(2018:2021),
           function(year) {
@@ -74,41 +82,47 @@ wta_2018_2021_matches <-
               mutate(winner_seed = as.character(winner_seed),
                      loser_seed = as.character(loser_seed))
           })
+wta = wta_2018_2021_matches
+
+wta %>% 
+  mutate(total_ace = w_ace+l_ace) %>% 
+  filter(total_ace <50) %>%
+  ggplot(aes(y=total_ace, fill=surface)) +
+  geom_boxplot(aes(x='')) +
+  coord_flip() + 
+  theme_bw() + 
+  scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
+  xlab("Surface type") +
+  ylab("Number of aces from both players")
 ```
 ---
-
-## Aces are most common on grass surface courts
-```{r surfacetype_ace, echo=FALSE}
-wta_2018_2021_matches %>%
-  mutate(total_ace = w_ace + l_ace) %>%
-  filter(total_ace < 50) %>%
-  ggplot(aes(y = total_ace, fill = surface)) +
-  geom_boxplot(aes(x= '')) +
-  coord_flip() +
-  theme_bw()
-```
----
-
 ## Final and semi final matches are typically longer
 ```{r match_length, echo = FALSE}
-wta_2018_2021_matches %>%
-  filter(minutes < 500) %>%
-  ggplot(aes(x = minutes)) +
+wta$round=as.factor(wta$round)
+wta$round = fct_relevel(wta$round, 
+            c("F", "SF", "QF", "R16", 
+              "R32", "R64", "R128", "RR"))
+
+wta %>%
+  filter(minutes<300) %>%
+  ggplot(aes(x=minutes)) + 
   geom_density() +
   facet_wrap(~ round) +
-  geom_rug(alpha = .3) +
-  theme_bw()
+  geom_rug(alpha=0.3) + 
+  theme_bw() + 
+  xlab("Match Length in Minutes") +
+  ylab("Distribution of Match Length")
 ```
 
 ---
 ## Most players excel on a single surface type
 ```{r win_rate, echo = FALSE}
-games_win = wta_2018_2021_matches%>% 
+games_win = wta %>% 
   group_by(winner_name, surface) %>%
   count() %>%
   rename(player = winner_name)
-
-games_lose = wta_2018_2021_matches %>%
+  
+games_lose = wta %>%
   group_by(loser_name, surface) %>%
   count() %>%
   rename(player = loser_name)
@@ -121,55 +135,18 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   filter(total >= 10) %>% 
   ungroup() %>%
   group_by(surface) %>%
-  slice(1:10) %>%
-  ggplot(aes(x=player, y=winrate)) +
-  geom_bar(stat='identity') + 
-  facet_wrap(~surface, ncol=1) +
+  slice(1:5) %>%
+  mutate(surface = as.factor(surface), 
+         player=reorder_within(player, -winrate, surface)) %>%
+  ggplot(aes(x=player, y=winrate, fill=surface)) +
+  geom_bar(stat='identity', width = 0.5) + 
+  facet_wrap(~surface, ncol=3, scales = "free_x") +
   theme_bw() +
-  theme(axis.text.x = element_text(size = 3))
-```
-
----
-## Clustering
-```{r clustering, echo = FALSE}
-w_df_ace <-
-  wta_2018_2021_matches %>%
-  group_by(winner_name) %>%
-  summarise(total_ace_w = sum(w_ace, na.rm = TRUE),
-            total_df_w = sum(w_df, na.rm = TRUE),
-            n_game_w = n()) %>%
-  rename(name = winner_name)
-
-l_df_ace <-
-  wta_2018_2021_matches %>%
-  group_by(loser_name) %>%
-  summarise(total_ace_l = sum(l_ace, na.rm = TRUE),
-            total_df_l = sum(l_df, na.rm = TRUE),
-            n_game_l = n()) %>%
-  rename(name = loser_name)
-
-all_df_ace <- full_join(w_df_ace, l_df_ace, by = 'name') %>%
-  replace_na(list(total_ace_w = 0, total_df_w = 0, n_game_w = 0, 
-                  total_ace_l = 0, total_df_l = 0, n_game_l = 0)) %>%
-  mutate(avg_ace = (total_ace_w + total_ace_l)/(n_game_w + n_game_l),
-         avg_df = (total_df_w +total_df_l)/(n_game_w + n_game_l)) %>%
-  filter(n_game_w +n_game_l > 10)
-
-
-player_dist <- 
-  dist(dplyr::select(all_df_ace, avg_ace, avg_df))
-
-wta_hclust<-
-  hclust(player_dist, method = "complete")
-
-all_df_ace %>%
-  mutate(player_clusters =
-           as.factor(cutree(wta_hclust, k = 3))) %>%
-  ggplot(aes(x = avg_ace, y = avg_df,
-             color = player_clusters)) +
-  geom_point() +
-  theme_bw() +
-  theme(legend.position = "bottom")
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  xlab("Player Name") +
+  ylab("Player Winrate") +
+  scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
+  scale_x_reordered()
 ```
 
 ---
@@ -197,5 +174,47 @@ Through clustering, we can visualize groups of players that are more conservativ
 -_Next Steps:_ 
  - examining other player data such as second serve points and break points
  - manipulating the data to be able to compare players more easily
+
+
+---
+##Players have different strategies on serving
+```{r, echo=F, fig.asp=1, fig.width=3.5,out.width="50%",  fig.align='center'}
+winner_ace_df = wta %>%
+  group_by(winner_name) %>%
+  summarise(total_ace_win = sum(w_ace, na.rm = T),
+            total_df_win = sum(w_df, na.rm = T),
+            n_game_win = n()) %>%
+  rename(name=winner_name)
+
+loser_ace_df = wta %>%
+  group_by(loser_name) %>%
+  summarise(total_ace_lose = sum(l_ace, na.rm = T),
+            total_df_lose = sum(l_df, na.rm = T),
+            n_game_lose = n()) %>%
+  rename(name=loser_name)
+
+all_ace_df = full_join(winner_ace_df, loser_ace_df, by='name') %>%
+  replace_na(list(total_ace_win = 0, total_df_win = 0, n_game_win = 0,
+                  total_ace_lose = 0, total_df_lose = 0, n_game_lose = 0)) %>%
+  mutate(avg_ace = (total_ace_win+total_ace_lose)/(n_game_win+n_game_lose),
+         avg_df = (total_df_win+total_df_lose)/(n_game_win+n_game_lose)) %>%
+  filter(n_game_win+n_game_lose>10)
+
+player_dist = dist(select(all_ace_df, avg_ace, avg_df))
+
+wta_minimax = protoclust(player_dist)
+
+all_ace_df %>% 
+  mutate(player_clusters = as.factor(protocut(wta_minimax, k=3)$cl)) %>%
+  ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
+  geom_point(alpha=0.7) + 
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  ggthemes::scale_color_colorblind() +
+  xlab("Average Aces of a Player") +
+  ylab("Average Double Faults of a Player") +
+  labs(color="Player Clusters")
+
+```
 
 
