@@ -39,7 +39,7 @@ style_duo_accent(
 )
 ```
 
-## Best Player on Different Surface
+##Number of Aces on Different Surface
 ```{r, echo=F, cache=T}
 library(tidyverse)
 library(gt)
@@ -57,6 +57,42 @@ wta_2018_2021_matches <-
           })
 wta = wta_2018_2021_matches
 
+wta %>% 
+  mutate(total_ace = w_ace+l_ace) %>% 
+  filter(total_ace <50) %>%
+  ggplot(aes(y=total_ace, fill=surface)) +
+  geom_boxplot(aes(x='')) +
+  coord_flip() + 
+  theme_bw() + 
+  scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
+  xlab("Surface type") +
+  ylab("Number of aces from both players")
+```
+
+---
+
+##Match Length in Different Round
+```{r, echo=F}
+wta$round=as.factor(wta$round)
+wta$round = fct_relevel(wta$round, 
+            c("F", "SF", "QF", "R16", 
+              "R32", "R64", "R128", "RR"))
+
+wta %>%
+  filter(minutes<300) %>%
+  ggplot(aes(x=minutes)) + 
+  geom_density() +
+  facet_wrap(~ round) +
+  geom_rug(alpha=0.3) + 
+  theme_bw() + 
+  xlab("Match Length in Minutes") +
+  ylab("Distribution of Match Length")
+```
+
+---
+
+##Best Player on Different Surface
+```{r, echo=F}
 games_win = wta %>% 
   group_by(winner_name, surface) %>%
   count() %>%
@@ -76,46 +112,18 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   ungroup() %>%
   group_by(surface) %>%
   slice(1:5) %>%
-  ggplot(aes(x=player, y=winrate)) +
+  mutate(surface = as.factor(surface), 
+         player=reorder_within(player, -winrate, surface)) %>%
+  ggplot(aes(x=player, y=winrate, fill=surface)) +
   geom_bar(stat='identity', width = 0.5) + 
   facet_wrap(~surface, ncol=3, scales = "free_x") +
   theme_bw() +
   theme(axis.text.x=element_text(angle=45, hjust=1)) +
   xlab("Player Name") +
-  ylab("Player Winrate")
-```
-
----
-
-##Match Length in Different Round
-```{r, echo=F}
-wta %>%
-  filter(minutes<300) %>%
-  mutate(fct_relevel(round, 
-                     "F", "SF", "QF", "R16", "R32", "R64", "R128", "RR")) %>%
-  ggplot(aes(x=minutes)) + 
-  geom_density() +
-  facet_wrap(~ round) +
-  geom_rug(alpha=0.3) + 
-  theme_bw() + 
-  xlab("Match length in minutes") +
-  ylab("Distribution of match length")
-```
-
----
-
-##Number of Aces on Different Surface
-```{r, echo=F}
-wta %>% 
-  mutate(total_ace = w_ace+l_ace) %>% 
-  filter(total_ace <50) %>%
-  ggplot(aes(y=total_ace, fill=surface)) +
-  geom_boxplot(aes(x='')) +
-  coord_flip() + 
-  theme_bw() + 
+  ylab("Player Winrate") +
   scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
-  xlab("Surface type") +
-  ylab("Number of aces from both players")
+  scale_x_reordered()
+
 
 ```
 
@@ -132,7 +140,7 @@ winner_ace_df = wta %>%
 loser_ace_df = wta %>%
   group_by(loser_name) %>%
   summarise(total_ace_lose = sum(l_ace, na.rm = T),
-            total_df_lose = sum(l_ace, na.rm = T),
+            total_df_lose = sum(l_df, na.rm = T),
             n_game_lose = n()) %>%
   rename(name=loser_name)
 
@@ -145,14 +153,19 @@ all_ace_df = full_join(winner_ace_df, loser_ace_df, by='name') %>%
 
 player_dist = dist(select(all_ace_df, avg_ace, avg_df))
 
-ace_df_hclust = hclust(player_dist, method = "complete")  
+wta_minimax = protoclust(player_dist)
 
 all_ace_df %>% 
-  mutate(player_clusters = as.factor(cutree(ace_df_hclust, k=3))) %>%
+  mutate(player_clusters = as.factor(protocut(wta_minimax, k=3)$cl)) %>%
   ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
   geom_point() + 
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") +
+  ggthemes::scale_color_colorblind() +
+  xlab("Average Aces of a Player") +
+  ylab("Average Double Faults of a Player") +
+  labs(color="Player Clusters")
+
 ```
 
 
