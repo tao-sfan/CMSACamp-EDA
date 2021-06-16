@@ -1,5 +1,5 @@
 ---
-title: "Give it a title"
+title: "Exploratory Data Analysis: WTA"
 author: 
   - "Sara Armstrong"
   - "Grace Fain"
@@ -32,7 +32,6 @@ knitr::opts_chunk$set(
 
 ```{r xaringan-themer, include=FALSE, warning=FALSE}
 library(xaringanthemer)
-
 style_duo_accent(
   primary_color = "#1381B0",
   secondary_color = "#FF961C",
@@ -40,7 +39,33 @@ style_duo_accent(
 )
 ```
 
-##Aces are more common on grass surface
+
+## Motivation
+-given data set 
+- looking for relationships within the data
+-practicing eda
+---
+## Dataset
+
+- WTA Match Data: all WTA matches between 2018 and 2021
+ - courtesy of Jeff Sackmann’s famous tennis repository
+
+-each observation was a player and from there was broken down into observations of winners and losers, for example the number of aces by each player was broken down into winner_ace and loser_ace
+
+-most common used variables
+ - w_ace, l_ace, surface
+ 
+---
+## Hypothesis
+ 1) The surface type with the most aces is the hard courts.
+ 
+ 2) The final matches would be the longest matches
+ 
+ 3) Players will have a high win rate on only one of the surfaces
+ 
+---
+
+## Aces are most common on grass surface courts
 ```{r, echo=F, cache=T}
 library(tidyverse)
 library(gt)
@@ -48,6 +73,7 @@ library(ggdendro)
 library(seriation)
 library(flexclust)
 library(protoclust)
+
 wta_2018_2021_matches <-
   map_dfr(c(2018:2021),
           function(year) {
@@ -69,11 +95,9 @@ wta %>%
   xlab("Surface type") +
   ylab("Number of aces from both players")
 ```
-
 ---
-
-##Match length is longer in later rounds
-```{r, echo=F}
+## Final and semi final matches are typically longer
+```{r match_length, echo = FALSE}
 wta$round=as.factor(wta$round)
 wta$round = fct_relevel(wta$round, 
             c("F", "SF", "QF", "R16", 
@@ -91,14 +115,13 @@ wta %>%
 ```
 
 ---
-
-##Players perform better on certain surfaces
-```{r, echo=F}
+## Most players excel on a single surface type
+```{r win_rate, echo = FALSE}
 games_win = wta %>% 
   group_by(winner_name, surface) %>%
   count() %>%
   rename(player = winner_name)
-
+  
 games_lose = wta %>%
   group_by(loser_name, surface) %>%
   count() %>%
@@ -124,9 +147,34 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
   ylab("Player Winrate") +
   scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
   scale_x_reordered()
-
-
 ```
+
+---
+## Recap and what is next for the WTA match data
+
+
+Aces are most common on grass courts.
+
+
+
+Later round matches are typically longer than earlier rounds.
+
+
+
+Players preform better on some surfaces than others
+
+--
+
+Through clustering, we can visualize groups of players that are more conservative with their serves versus players that are more aggressive.
+
+
+-_Limitations:_
+ - Due to the dataset separating winner and loser data, it made it difficult to explore and compare overall player performances
+
+-_Next Steps:_ 
+ - examining other player data such as second serve points and break points
+ - manipulating the data to be able to compare players more easily
+
 
 ---
 ##Players have different strategies on serving
