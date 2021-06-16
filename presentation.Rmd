@@ -32,6 +32,7 @@ knitr::opts_chunk$set(
 
 ```{r xaringan-themer, include=FALSE, warning=FALSE}
 library(xaringanthemer)
+
 style_duo_accent(
   primary_color = "#1381B0",
   secondary_color = "#FF961C",
@@ -129,7 +130,7 @@ full_join(games_lose, games_win, by=c('player', 'surface')) %>%
 
 ---
 ##Players have different strategies on serving
-```{r, echo=F}
+```{r, echo=F, fig.asp=1, fig.width=3.5,out.width="50%",  fig.align='center'}
 winner_ace_df = wta %>%
   group_by(winner_name) %>%
   summarise(total_ace_win = sum(w_ace, na.rm = T),
@@ -158,7 +159,7 @@ wta_minimax = protoclust(player_dist)
 all_ace_df %>% 
   mutate(player_clusters = as.factor(protocut(wta_minimax, k=3)$cl)) %>%
   ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
-  geom_point() + 
+  geom_point(alpha=0.7) + 
   theme_bw() +
   theme(legend.position = "bottom") +
   ggthemes::scale_color_colorblind() +
