@@ -1,9 +1,10 @@
 ---
-title: "Presentation Ninja"
-subtitle: "&#x2694;&#xFE0F; xaringan +<br/>&#x1F60E; xaringanthemer"  
+
+title: "Exploratory Data Analysis: WTA"
 author: 
-  - "Yihui Xie"
-  - "Garrick Aden-Buie"
+  - "Sara Armstrong"
+  - "Grace Fain"
+  - "Sifan Tao"
 date: '`r Sys.Date()`'
 output:
   xaringan::moon_reader:
@@ -38,6 +39,7 @@ style_duo_accent(
   inverse_header_color = "#FFFFFF"
 )
 ```
+
 ## Motivation
 
 - Getting more experience working with real data and practicing EDA techniques
@@ -50,18 +52,173 @@ style_duo_accent(
 
 Women's Tennis Association match data from 2018 to 2021
 
+- Courtesy of Jeff Sackmann’s famous tennis repository
+
 - Each observation is an individual match
 
 - Player statistics are separated by winner and loser
 
 - Focused on aces, first serves, and court surface
 
+
+ 
 ---
-
-## Hypotheses
-
+## Hypothesis
 1. Hard courts will have more aces than other surfaces
 
 2. Match minutes will be longer in the final and semifinal rounds compared to earlier rounds
 
 3. Players will excel on one surface type rather than all three
+ 
+---
+
+## Aces are most common on grass surface courts
+```{r, echo=F, cache=T}
+library(tidyverse)
+library(gt)
+library(ggdendro)
+library(seriation)
+library(flexclust)
+library(protoclust)
+
+wta_2018_2021_matches <-
+  map_dfr(c(2018:2021),
+          function(year) {
+            read_csv(paste0("https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_",
+                            year, ".csv")) %>%
+              mutate(winner_seed = as.character(winner_seed),
+                     loser_seed = as.character(loser_seed))
+          })
+wta = wta_2018_2021_matches
+
+wta %>% 
+  mutate(total_ace = w_ace+l_ace) %>% 
+  filter(total_ace <50) %>%
+  ggplot(aes(y=total_ace, fill=surface)) +
+  geom_boxplot(aes(x='')) +
+  coord_flip() + 
+  theme_bw() + 
+  scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
+  xlab("Surface type") +
+  ylab("Number of aces from both players")
+```
+---
+## Final and semi final matches are typically longer
+```{r match_length, echo = FALSE}
+wta$round=as.factor(wta$round)
+wta$round = fct_relevel(wta$round, 
+            c("F", "SF", "QF", "R16", 
+              "R32", "R64", "R128", "RR"))
+
+wta %>%
+  filter(minutes<300) %>%
+  ggplot(aes(x=minutes)) + 
+  geom_density() +
+  facet_wrap(~ round) +
+  geom_rug(alpha=0.3) + 
+  theme_bw() + 
+  xlab("Match Length in Minutes") +
+  ylab("Distribution of Match Length")
+```
+
+---
+## Most players excel on a single surface type
+```{r win_rate, echo = FALSE}
+games_win = wta %>% 
+  group_by(winner_name, surface) %>%
+  count() %>%
+  rename(player = winner_name)
+  
+games_lose = wta %>%
+  group_by(loser_name, surface) %>%
+  count() %>%
+  rename(player = loser_name)
+
+full_join(games_lose, games_win, by=c('player', 'surface')) %>%
+  rename(wins = "n.y", losses = "n.x") %>% 
+  replace_na(list(losses = 0, wins=0)) %>%
+  mutate(total = wins+losses, winrate = wins/total) %>%
+  arrange(surface, desc(winrate)) %>%
+  filter(total >= 10) %>% 
+  ungroup() %>%
+  group_by(surface) %>%
+  slice(1:5) %>%
+  mutate(surface = as.factor(surface), 
+         player=reorder_within(player, -winrate, surface)) %>%
+  ggplot(aes(x=player, y=winrate, fill=surface)) +
+  geom_bar(stat='identity', width = 0.5) + 
+  facet_wrap(~surface, ncol=3, scales = "free_x") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  xlab("Player Name") +
+  ylab("Player Winrate") +
+  scale_fill_manual(values = c("Grass" = "Green", "Clay" = 'OrangeRed', "Hard" = "SkyBlue")) +
+  scale_x_reordered()
+```
+---
+##Players have different strategies on serving
+```{r, echo=F, fig.asp=1, fig.width=3.5,out.width="50%",  fig.align='center'}
+winner_ace_df = wta %>%
+  group_by(winner_name) %>%
+  summarise(total_ace_win = sum(w_ace, na.rm = T),
+            total_df_win = sum(w_df, na.rm = T),
+            n_game_win = n()) %>%
+  rename(name=winner_name)
+
+loser_ace_df = wta %>%
+  group_by(loser_name) %>%
+  summarise(total_ace_lose = sum(l_ace, na.rm = T),
+            total_df_lose = sum(l_df, na.rm = T),
+            n_game_lose = n()) %>%
+  rename(name=loser_name)
+
+all_ace_df = full_join(winner_ace_df, loser_ace_df, by='name') %>%
+  replace_na(list(total_ace_win = 0, total_df_win = 0, n_game_win = 0,
+                  total_ace_lose = 0, total_df_lose = 0, n_game_lose = 0)) %>%
+  mutate(avg_ace = (total_ace_win+total_ace_lose)/(n_game_win+n_game_lose),
+         avg_df = (total_df_win+total_df_lose)/(n_game_win+n_game_lose)) %>%
+  filter(n_game_win+n_game_lose>10)
+
+player_dist = dist(select(all_ace_df, avg_ace, avg_df))
+
+wta_minimax = protoclust(player_dist)
+
+all_ace_df %>% 
+  mutate(player_clusters = as.factor(protocut(wta_minimax, k=3)$cl)) %>%
+  ggplot(aes(x=avg_ace, y=avg_df, color=player_clusters)) + 
+  geom_point(alpha=0.7) + 
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  ggthemes::scale_color_colorblind() +
+  xlab("Average Aces of a Player") +
+  ylab("Average Double Faults of a Player") +
+  labs(color="Player Clusters")
+
+```
+
+---
+## Recap and what is next for the WTA match data
+
+
+####Aces are most common on grass courts.
+
+
+
+####Later round matches are typically longer than earlier rounds.
+
+
+
+####Players preform better on some surfaces than others
+
+--
+
+Through clustering, we can visualize groups of players that are more conservative with their serves versus players that are more aggressive.
+
+
+- _Limitations:_
+ - Due to the dataset separating winner and loser data, it made it difficult to explore and compare overall player performances
+
+- _Next Steps:_ 
+ - examining other player data such as second serve points and break points
+ - manipulating the data to be able to compare players more easily
+
