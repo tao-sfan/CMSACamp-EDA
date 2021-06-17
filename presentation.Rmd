@@ -1,5 +1,4 @@
 ---
-
 title: "Exploratory Data Analysis: WTA"
 author: 
   - "Sara Armstrong"
