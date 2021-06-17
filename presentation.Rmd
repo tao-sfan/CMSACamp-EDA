@@ -1,4 +1,5 @@
 ---
+
 title: "Exploratory Data Analysis: WTA"
 author: 
   - "Sara Armstrong"
@@ -39,29 +40,35 @@ style_duo_accent(
 )
 ```
 
-
 ## Motivation
-- given data set 
-- looking for relationships within the data
-- practicing eda
+
+- Getting more experience working with real data and practicing EDA techniques
+
+- **Exploring patterns** within the data and **finding relationships** between variables
+
+
 ---
-## Dataset
+## WTA Match Data
 
-- WTA Match Data: all WTA matches between 2018 and 2021
- - courtesy of Jeff Sackmann’s famous tennis repository
+Women's Tennis Association match data from 2018 to 2021
 
-- each observation was a player and from there was broken down into observations of winners and losers, for example the number of aces by each player was broken down into winner_ace and loser_ace
+- Courtesy of Jeff Sackmann’s famous tennis repository
 
-- most common used variables
- - w_ace, l_ace, surface
+- Each observation is an individual match
+
+- Player statistics are separated by winner and loser
+
+- Focused on aces, first serves, and court surface
+
+
  
 ---
 ## Hypothesis
-#### 1) The surface type with the most aces is the hard courts.
- 
-#### 2) The final matches would be the longest matches
- 
-#### 3) Players will have a high win rate on only one of the surfaces
+1. Hard courts will have more aces than other surfaces
+
+2. Match minutes will be longer in the final and semifinal rounds compared to earlier rounds
+
+3. Players will excel on one surface type rather than all three
  
 ---
 
@@ -214,8 +221,4 @@ Through clustering, we can visualize groups of players that are more conservativ
 - _Next Steps:_ 
  - examining other player data such as second serve points and break points
  - manipulating the data to be able to compare players more easily
-
-
-
-
 
