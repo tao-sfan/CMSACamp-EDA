@@ -205,3 +205,19 @@ all_ace_df %>%
   geom_point() + 
   theme_bw() +
   theme(legend.position = "bottom")
+
+wta = wta_2018_2021_matches
+
+wta$round = as.factor(wta$round)
+wta$round = fct_relevel(wta$round, c("F", "SF", "QF", "R16", 
+                                     "R32", "R64", "R128", "RR"))
+
+wta %>%
+  filter(minutes<300) %>%
+  ggplot(aes(x=minutes)) + 
+  geom_density() +
+  facet_wrap(~ round) +
+  geom_rug(alpha=0.3) + 
+  theme_bw() + 
+  xlab("Match Length in Minutes") +
+  ylab("Distribution of Match Length")
